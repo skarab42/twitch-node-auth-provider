@@ -13,18 +13,23 @@
   },
   "scripts": {
     "clean": "rimraf dist",
+    "tsc-config": "tsc --showconfig",
     "dev": "tsc -w -p tsconfig-cjs.json",
-    "build:mjs": "tsc -p tsconfig-mjs.json",
+    "build:mjs": "tsc -p tsconfig.json",
     "build:cjs": "tsc -p tsconfig-cjs.json",
     "build": "yarn clean && yarn build:mjs && yarn build:cjs",
     "test": "jest",
     "test:coverage": "yarn test --collect-coverage"
   },
-  "dependencies": {},
+  "dependencies": {
+    "open": "^8.2.1",
+    "uuid": "^8.3.2"
+  },
   "devDependencies": {
     "@types/jest": "^27.0.1",
     "@types/node": "^16.7.1",
     "@types/rimraf": "^3.0.2",
+    "@types/uuid": "^8.3.1",
     "jest": "^27.0.6",
     "rimraf": "^3.0.2",
     "ts-jest": "^27.0.5",
