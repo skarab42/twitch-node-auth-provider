@@ -1,0 +1,32 @@
+{
+  "name": "twitch-http-auth-provider",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Obtain auth tokens for Twitch using an Node HTTP server popup.",
+  "author": "skarab42 <contact@skarab42.dev>",
+  "types": "dist/@types/index.d.ts",
+  "main": "dist/cjs/index.js",
+  "module": "dist/mjs/index.js",
+  "exports": {
+    "import": "./dist/mjs/index.js",
+    "require": "./dist/cjs/index.js"
+  },
+  "scripts": {
+    "clean": "rimraf dist",
+    "dev": "tsc -w -p tsconfig-cjs.json",
+    "build:mjs": "tsc -p tsconfig-mjs.json",
+    "build:cjs": "tsc -p tsconfig-cjs.json",
+    "build": "yarn clean && yarn build:mjs && yarn build:cjs"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "rimraf": "^3.0.2",
+    "twitch": "^4.6.5",
+    "twitch-auth": "^4.6.5",
+    "typescript": "^4.3.5"
+  },
+  "peerDependencies": {
+    "twitch": "^4.6.5",
+    "twitch-auth": "^4.6.5"
+  }
+}
