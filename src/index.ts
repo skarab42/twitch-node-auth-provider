@@ -1,21 +1,28 @@
 import { AccessToken, AuthProvider, AuthProviderTokenType } from "twitch-auth";
+import { v4 as uuid } from "uuid";
+import open from "open";
 
 function arrayifyScopes(scopes?: string | string[]): string[] {
-  return typeof scopes === "string" ? scopes.split(/[ ,\+]+/) : scopes ?? [];
+  return typeof scopes === "string" ? scopes.split(/[ ,]+/) : scopes ?? [];
+}
+
+function arrayUnique<T>(array: T[]): T[] {
+  return [...new Set(array)];
 }
 
 export interface NodeAuthProviderOptions {
   clientId: string;
   redirectUri: string;
   scopes?: string | string[];
-  accessToken?: AccessToken | string | null;
+  accessToken?: AccessToken | null;
 }
 
 export class NodeAuthProvider implements AuthProvider {
   private readonly _clientId: string;
   private readonly _redirectUri: string;
-  private readonly _currentScopes: Set<string>;
+  private readonly _scopes: string[];
 
+  private _requestState: string | null = null;
   private _accessToken: AccessToken | null = null;
 
   public readonly tokenType: AuthProviderTokenType = "user";
@@ -29,34 +36,59 @@ export class NodeAuthProvider implements AuthProvider {
   }
 
   get currentScopes() {
-    return Array.from(this._currentScopes);
+    return this._accessToken?.scope ?? [];
   }
 
   constructor(options: NodeAuthProviderOptions) {
     this._clientId = options.clientId;
     this._redirectUri = options.redirectUri;
-    this._currentScopes = new Set(arrayifyScopes(options.scopes));
+    this._scopes = arrayifyScopes(options.scopes);
 
     if (options.accessToken) {
       this.setAccessToken(options.accessToken);
     }
   }
 
-  setAccessToken(accessToken: AccessToken | string | null): void {
-    if (typeof accessToken === "string") {
-      accessToken = new AccessToken({
-        scope: this.currentScopes,
-        access_token: accessToken,
-        refresh_token: "",
-      });
-    }
-
+  setAccessToken(accessToken: AccessToken): void {
     this._accessToken = accessToken;
+  }
+
+  hasScopes(scopes: string[]) {
+    return scopes.every((scope) => this._accessToken?.scope.includes(scope));
+  }
+
+  private openTwitchWindow(scopes: string[]) {
+    const scope = arrayUnique([...this._scopes, ...scopes]).join(" ");
+    open(
+      `https://id.twitch.tv/oauth2/authorize?client_id=${this._clientId}` +
+        `&redirect_uri=${this._redirectUri}` +
+        `&state=${this._requestState}` +
+        `&response_type=token` +
+        `&scope=${scope}`
+    );
+  }
+
+  private async requestNewScopes(scopes: string[]): Promise<AccessToken> {
+    this._requestState = uuid();
+    this.openTwitchWindow(scopes);
+    // start server
+    // wait for response
+    return Promise.reject("Prout");
   }
 
   async getAccessToken(scopes?: string | string[]): Promise<AccessToken> {
     scopes = arrayifyScopes(scopes);
-    console.log("getAccessToken:", { scopes });
-    return this._accessToken ?? Promise.reject();
+
+    if (this._accessToken && this.hasScopes(scopes)) {
+      return this._accessToken;
+    }
+
+    try {
+      this._accessToken = await this.requestNewScopes(scopes);
+    } catch (error) {
+      return Promise.reject(error);
+    }
+
+    return this._accessToken;
   }
 }
