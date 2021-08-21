@@ -1,5 +1,5 @@
 {
-  "name": "twitch-http-auth-provider",
+  "name": "twitch-node-auth-provider",
   "version": "0.1.0",
   "license": "MIT",
   "description": "Obtain auth tokens for Twitch using an Node HTTP server popup.",

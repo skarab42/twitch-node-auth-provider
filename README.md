@@ -1,4 +1,4 @@
-# Twitch.js - HTTP auth provider
+# Twitch.js - Node (HTTP) auth provider
 
 This is an {@AuthProvider} implementation for [the `twitch` package family](https://github.com/d-fischer/twitch) that will automatically pop up a Twitch OAuth dialog in default user browser as soon as new scopes are requested.
 
@@ -6,11 +6,11 @@ This is an {@AuthProvider} implementation for [the `twitch` package family](http
 
 To add this library to your project, just execute:
 
-    yarn add twitch-http-auth-provider
+    yarn add twitch-node-auth-provider
 
 or using npm:
 
-    npm install twitch-http-auth-provider
+    npm install twitch-node-auth-provider
 
 ## Basic usage
 
@@ -18,12 +18,12 @@ To instantiate an {@ApiClient} with this auth provider, just pass it to its cons
 
 ```ts
 import { ApiClient } from "twitch";
-import { HTTPAuthProvider } from "twitch-http-auth-provider";
+import { NodeAuthProvider } from "twitch-node-auth-provider";
 
 const clientId = "abc123";
 const redirectUri = "http://foo.bar/login";
 
-const authProvider = new HTTPAuthProvider({
+const authProvider = new NodeAuthProvider({
   clientId,
   redirectUri,
 });
