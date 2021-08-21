@@ -1,6 +1,7 @@
 {
   "include": ["src/**/*.ts"],
   "compilerOptions": {
+    "lib": ["ES6"],
     // Basic Options
     "checkJs": true,
     // "rootDir": "src",
