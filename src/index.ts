@@ -1,6 +1,14 @@
 import { AccessToken, AuthProvider, AuthProviderTokenType } from "twitch-auth";
+import { Server, ServerResponse } from "./server";
 import { v4 as uuid } from "uuid";
 import open from "open";
+
+export interface NodeAuthProviderOptions {
+  clientId: string;
+  redirectUri: string;
+  scopes?: string | string[];
+  accessToken?: AccessToken | null;
+}
 
 function arrayifyScopes(scopes?: string | string[]): string[] {
   return typeof scopes === "string" ? scopes.split(/[ ,]+/) : scopes ?? [];
@@ -10,18 +18,12 @@ function arrayUnique<T>(array: T[]): T[] {
   return [...new Set(array)];
 }
 
-export interface NodeAuthProviderOptions {
-  clientId: string;
-  redirectUri: string;
-  scopes?: string | string[];
-  accessToken?: AccessToken | null;
-}
-
 export class NodeAuthProvider implements AuthProvider {
   private readonly _clientId: string;
   private readonly _redirectUri: string;
   private readonly _scopes: string[];
 
+  private _server: Server;
   private _requestState: string | null = null;
   private _accessToken: AccessToken | null = null;
 
@@ -43,6 +45,9 @@ export class NodeAuthProvider implements AuthProvider {
     this._clientId = options.clientId;
     this._redirectUri = options.redirectUri;
     this._scopes = arrayifyScopes(options.scopes);
+    this._server = new Server({
+      redirectUri: this._redirectUri,
+    });
 
     if (options.accessToken) {
       this.setAccessToken(options.accessToken);
@@ -68,12 +73,10 @@ export class NodeAuthProvider implements AuthProvider {
     );
   }
 
-  private async requestNewScopes(scopes: string[]): Promise<AccessToken> {
+  private async requestNewScopes(scopes: string[]): Promise<ServerResponse> {
     this._requestState = uuid();
     this.openTwitchWindow(scopes);
-    // start server
-    // wait for response
-    return Promise.reject("Prout");
+    return this._server.listen(this._requestState);
   }
 
   async getAccessToken(scopes?: string | string[]): Promise<AccessToken> {
@@ -84,7 +87,13 @@ export class NodeAuthProvider implements AuthProvider {
     }
 
     try {
-      this._accessToken = await this.requestNewScopes(scopes);
+      const { accessToken, scope } = await this.requestNewScopes(scopes);
+
+      this._accessToken = new AccessToken({
+        scope: arrayifyScopes(scope),
+        access_token: accessToken,
+        refresh_token: "",
+      });
     } catch (error) {
       return Promise.reject(error);
     }
