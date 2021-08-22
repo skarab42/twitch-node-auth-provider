@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="stylesheet" href="style.css" />
+    <title>Auth - Twitch Plugin</title>
+  </head>
+  <body>
+    <h1>✔ You are logged in</h1>
+    <p>
+      This page will close automatically in
+      <span id="countdown">∞</span> seconds, or you can close it manually.
+    </p>
+    <footer>Opened by vscode-twitch-plugin</footer>
+    <script type="text/javascript">
+      let countdown = 15;
+      const $countdown = document.querySelector("#countdown");
+      const interval = setInterval(() => {
+        if (countdown <= 0) {
+          $countdown.innerText = "∞";
+          clearInterval(interval);
+          window.close();
+          return;
+        }
+        $countdown.innerText = countdown;
+        countdown--;
+      }, 1000);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="stylesheet" href="style.css" />
+    <title>⚠ Auth error - Twitch Plugin</title>
+  </head>
+  <body>
+    <h1>⚠ Auth error</h1>
+    <p id="error">{{message}}</p>
+    <footer>Opened by vscode-twitch-plugin</footer>
+    <script type="text/javascript">
+      const $error = document.querySelector("#error");
+      const { searchParams } = new URL(window.location);
+      const message = searchParams.get("error_description");
+      if (message) {
+        $error.innerText = message;
+      }
+    </script>
+  </body>
+</html>

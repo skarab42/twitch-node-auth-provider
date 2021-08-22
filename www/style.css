@@ -1,0 +1,35 @@
+@import url("https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@500&display=swap");
+
+body {
+  font-size: 24px;
+  color: #e5c07b;
+  background-color: #282c34;
+  font-family: "Source Code Pro", monospace;
+}
+
+body,
+h1,
+p {
+  margin: 0;
+  padding: 0;
+}
+
+h1,
+p,
+footer {
+  padding: 8px 16px;
+}
+
+h1 {
+  font-size: 2em;
+  color: #c678dd;
+}
+
+footer {
+  font-size: 12px;
+  color: rgb(143, 150, 156);
+}
+
+#countdown {
+  color: #f44747;
+}
