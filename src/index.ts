@@ -1,7 +1,5 @@
 import { AccessToken, AuthProvider, AuthProviderTokenType } from "twitch-auth";
 import { Server, ServerResponse } from "./server";
-import { v4 as uuid } from "uuid";
-import open from "open";
 
 export interface NodeAuthProviderOptions {
   clientId: string;
@@ -24,7 +22,6 @@ export class NodeAuthProvider implements AuthProvider {
   private readonly _scopes: string[];
 
   private _server: Server;
-  private _requestState: string | null = null;
   private _accessToken: AccessToken | null = null;
 
   public readonly tokenType: AuthProviderTokenType = "user";
@@ -42,15 +39,15 @@ export class NodeAuthProvider implements AuthProvider {
   }
 
   constructor(options: NodeAuthProviderOptions) {
-    this._clientId = options.clientId;
-    this._redirectUri = options.redirectUri;
-    this._scopes = arrayifyScopes(options.scopes);
-    this._server = new Server({
-      redirectUri: this._redirectUri,
-    });
+    const { clientId, redirectUri, scopes, accessToken } = options;
 
-    if (options.accessToken) {
-      this.setAccessToken(options.accessToken);
+    this._clientId = clientId;
+    this._redirectUri = redirectUri;
+    this._scopes = arrayifyScopes(scopes);
+    this._server = new Server({ clientId, redirectUri });
+
+    if (accessToken) {
+      this.setAccessToken(accessToken);
     }
   }
 
@@ -62,21 +59,10 @@ export class NodeAuthProvider implements AuthProvider {
     return scopes.every((scope) => this._accessToken?.scope.includes(scope));
   }
 
-  private openTwitchWindow(scopes: string[]) {
-    const scope = arrayUnique([...this._scopes, ...scopes]).join(" ");
-    open(
-      `https://id.twitch.tv/oauth2/authorize?client_id=${this._clientId}` +
-        `&redirect_uri=${this._redirectUri}` +
-        `&state=${this._requestState}` +
-        `&response_type=token` +
-        `&scope=${scope}`
-    );
-  }
-
   private async requestNewScopes(scopes: string[]): Promise<ServerResponse> {
-    this._requestState = uuid();
-    this.openTwitchWindow(scopes);
-    return this._server.listen(this._requestState);
+    return this._server.listen(
+      arrayUnique([...this._scopes, ...scopes]).join(" ")
+    );
   }
 
   async getAccessToken(scopes?: string | string[]): Promise<AccessToken> {
