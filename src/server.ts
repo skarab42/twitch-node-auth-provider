@@ -9,6 +9,8 @@ import { v4 as uuid } from "uuid";
 export interface ServerOptions {
   clientId: string;
   redirectUri: string;
+  closeTimeout?: number;
+  loginTimeout?: number;
 }
 
 export interface ServerResponse {
@@ -39,21 +41,26 @@ export class Server {
   public readonly port: string;
   public readonly clientId: string;
   public readonly redirectUri: string;
+  public readonly closeTimeout: number;
+  public readonly loginTimeout: number;
 
   private server: http.Server | null = null;
   private promise: ServerPromise | null = null;
   private states: Set<string | null> = new Set();
   private sockets: Map<string, Socket> = new Map();
   private listenPromise: Promise<void> | null = null;
+  private loginTimeoutId: NodeJS.Timeout | null = null;
 
   constructor(options: ServerOptions) {
-    const { clientId, redirectUri } = options;
+    const { clientId, redirectUri, closeTimeout, loginTimeout } = options;
     const { host, port } = new URL(redirectUri);
 
     this.host = host;
     this.port = port;
     this.clientId = clientId;
     this.redirectUri = redirectUri;
+    this.closeTimeout = closeTimeout ?? 2000;
+    this.loginTimeout = loginTimeout ?? 5 * 60 * 1000;
   }
 
   private sendFile(
@@ -159,6 +166,34 @@ export class Server {
     );
   }
 
+  private close() {
+    this.sockets.forEach((client) => client.destroy());
+    this.server?.close();
+  }
+
+  private closeWithTimeout() {
+    setTimeout(() => {
+      if (!this.promise && this.server) {
+        this.close();
+      }
+    }, this.closeTimeout);
+  }
+
+  private resetLoginTimeout() {
+    if (this.loginTimeoutId) {
+      clearTimeout(this.loginTimeoutId);
+    }
+    this.loginTimeoutId = setTimeout(() => {
+      if (this.promise) {
+        this.reject({
+          type: "login-timeout",
+          message: "Invalidated by new request",
+        });
+      }
+      this.close();
+    }, this.loginTimeout);
+  }
+
   private createServerAndlisten(): Promise<void> {
     return new Promise((resolve) => {
       this.server = http.createServer((req, res) => this.onRequest(req, res));
@@ -174,28 +209,14 @@ export class Server {
   private resolve(response: ServerResponse) {
     this.promise?.resolve(response);
     this.promise = null;
-    // await this.close();
+    this.closeWithTimeout();
   }
 
   private reject(reason: ServerResponseError) {
     this.promise?.reject(reason);
     this.promise = null;
-    // await this.close();
+    this.closeWithTimeout();
   }
-
-  // private close() {
-  //   return new Promise((resolve, reject) => {
-  //     this.sockets.forEach((client) => client.destroy());
-  //     setTimeout(() => {
-  //       if (!this.promise && this.server) {
-  //         this.server?.close((err) => {
-  //           console.log("server close:", { err });
-  //           err ? reject(err) : resolve(true);
-  //         });
-  //       }
-  //     }, 2000);
-  //   });
-  // }
 
   async listen(scopes: string) {
     if (this.promise) {
@@ -218,6 +239,7 @@ export class Server {
       this.listenPromise = null;
     }
 
+    this.resetLoginTimeout();
     this.openTwitchAuthPage(scopes);
 
     return promise;
