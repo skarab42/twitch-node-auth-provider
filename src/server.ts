@@ -18,17 +18,24 @@ export interface ServerResponse {
   scope: string;
 }
 
+export enum ServerErrorTypes {
+  UNKNOW = "UNKNOW",
+  LOGIN_TIMEOUT = "LOGIN_TIMEOUT",
+  INVALID_STATE = "INVALID_STATE",
+  INVALIDATED = "INVALIDATED",
+}
+
+export interface ServerResponseError {
+  type: ServerErrorTypes;
+  message: string;
+}
+
 type ReplaceRecord = Record<string, string>;
 
 interface FileOptions {
   statusCode?: number;
   contentType?: string;
   replace?: ReplaceRecord;
-}
-
-export interface ServerResponseError {
-  type: string;
-  message: string;
 }
 
 interface ServerPromise {
@@ -108,16 +115,16 @@ export class Server {
         } else {
           const message = "Connection refused, the state does not match!";
           this.sendFile(res, `error.html`, { replace: { message } });
-          this.reject({ type: "invalid-state", message });
+          this.reject({ type: ServerErrorTypes.INVALID_STATE, message });
         }
         this.states.delete(state);
         break;
       case "/error":
-        const type = url.searchParams.get("error") || "undefined";
+        const type = url.searchParams.get("error") || ServerErrorTypes.UNKNOW;
         const message =
           url.searchParams.get("error_description") || "Undefined error";
         this.sendFile(res, "error.html", { replace: { message } });
-        this.reject({ type, message });
+        this.reject({ type: type.toLocaleUpperCase(), message });
         break;
       case "/style.css":
         this.sendFile(res, "style.css", { contentType: "text/css" });
@@ -186,8 +193,8 @@ export class Server {
     this.loginTimeoutId = setTimeout(() => {
       if (this.promise) {
         this.reject({
-          type: "login-timeout",
-          message: "Invalidated by new request",
+          type: ServerErrorTypes.LOGIN_TIMEOUT,
+          message: "Login timeout",
         });
       }
       this.close();
@@ -221,7 +228,7 @@ export class Server {
   async listen(scopes: string) {
     if (this.promise) {
       this.reject({
-        type: "invalidated-by-new-request",
+        type: ServerErrorTypes.INVALIDATED,
         message: "Invalidated by new request",
       });
     }
