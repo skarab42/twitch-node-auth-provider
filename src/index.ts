@@ -59,16 +59,28 @@ export class NodeAuthProvider implements AuthProvider {
     return scopes.every((scope) => this._accessToken?.scope.includes(scope));
   }
 
+  enableForceVerify(once: boolean = false) {
+    this._server.enableForceVerify(once);
+  }
+
+  disableForceVerify() {
+    this._server.disableForceVerify();
+  }
+
   private async requestNewScopes(scopes: string[]): Promise<ServerResponse> {
     return this._server.listen(
       arrayUnique([...this._scopes, ...scopes]).join(" ")
     );
   }
 
+  get forceVerify() {
+    return this._server.forceVerify || this._server.forceVerifyOnce;
+  }
+
   async getAccessToken(scopes?: string | string[]): Promise<AccessToken> {
     scopes = arrayifyScopes(scopes);
 
-    if (this._accessToken && this.hasScopes(scopes)) {
+    if (!this.forceVerify && this._accessToken && this.hasScopes(scopes)) {
       return this._accessToken;
     }
 

@@ -11,6 +11,8 @@ export interface ServerOptions {
   redirectUri: string;
   closeTimeout?: number;
   loginTimeout?: number;
+  forceVerify?: boolean;
+  forceVerifyOnce?: boolean;
 }
 
 export interface ServerResponse {
@@ -49,8 +51,11 @@ export class Server {
   public readonly port: string;
   public readonly clientId: string;
   public readonly redirectUri: string;
-  public readonly closeTimeout: number;
-  public readonly loginTimeout: number;
+
+  public closeTimeout: number;
+  public loginTimeout: number;
+  public forceVerify: boolean = false;
+  public forceVerifyOnce: boolean = false;
 
   private server: http.Server | null = null;
   private promise: ServerPromise | null = null;
@@ -159,19 +164,36 @@ export class Server {
     this.server = null;
   }
 
+  enableForceVerify(once: boolean = false) {
+    this.forceVerify = true;
+    this.forceVerifyOnce = once;
+  }
+
+  disableForceVerify() {
+    this.forceVerify = false;
+    this.forceVerifyOnce = false;
+  }
+
   private openTwitchAuthPage(scopes: string) {
     console.log("Open Twitch auth page");
 
     const state = uuid();
     this.states.add(state);
 
+    const forceVerify = this.forceVerify || this.forceVerifyOnce;
+
     open(
       `https://id.twitch.tv/oauth2/authorize?client_id=${this.clientId}` +
         `&redirect_uri=${this.redirectUri}` +
+        `&force_verify=${forceVerify}` +
         `&response_type=token` +
         `&scope=${scopes}` +
         `&state=${state}`
     );
+
+    if (this.forceVerifyOnce) {
+      this.disableForceVerify();
+    }
   }
 
   private close() {
