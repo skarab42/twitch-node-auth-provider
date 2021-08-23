@@ -20,13 +20,14 @@ export interface ServerResponse {
 
 export enum ServerErrorTypes {
   UNKNOW = "UNKNOW",
+  INVALIDATED = "INVALIDATED",
   LOGIN_TIMEOUT = "LOGIN_TIMEOUT",
   INVALID_STATE = "INVALID_STATE",
-  INVALIDATED = "INVALIDATED",
+  ACCESS_DENIED = "ACCESS_DENIED",
 }
 
 export interface ServerResponseError {
-  type: ServerErrorTypes;
+  type: ServerErrorTypes | string;
   message: string;
 }
 
