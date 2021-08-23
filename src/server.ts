@@ -40,10 +40,11 @@ export class Server {
   public readonly clientId: string;
   public readonly redirectUri: string;
 
-  private state: string | null = null;
   private server: http.Server | null = null;
-  private sockets: Map<string, Socket> = new Map();
   private promise: ServerPromise | null = null;
+  private states: Set<string | null> = new Set();
+  private sockets: Map<string, Socket> = new Map();
+  private listenPromise: Promise<void> | null = null;
 
   constructor(options: ServerOptions) {
     const { clientId, redirectUri } = options;
@@ -94,7 +95,7 @@ export class Server {
         const state = url.searchParams.get("state");
         const scope = url.searchParams.get("scope");
         const accessToken = url.searchParams.get("access_token");
-        if (accessToken && scope && state && state === this.state) {
+        if (accessToken && scope && this.states.has(state)) {
           this.sendFile(res, "logged-in.html");
           this.resolve({ accessToken, scope });
         } else {
@@ -102,6 +103,7 @@ export class Server {
           this.sendFile(res, `error.html`, { replace: { message } });
           this.reject({ type: "invalid-state", message });
         }
+        this.states.delete(state);
         break;
       case "/error":
         const type = url.searchParams.get("error") || "undefined";
@@ -138,56 +140,64 @@ export class Server {
 
   private onClose(): void {
     console.log("Twitch auth server closed");
+    this.promise = null;
     this.server = null;
   }
 
   private openTwitchAuthPage(scopes: string) {
     console.log("Open Twitch auth page");
 
-    this.state = uuid();
+    const state = uuid();
+    this.states.add(state);
 
     open(
       `https://id.twitch.tv/oauth2/authorize?client_id=${this.clientId}` +
         `&redirect_uri=${this.redirectUri}` +
         `&response_type=token` +
-        `&state=${this.state}` +
-        `&scope=${scopes}`
+        `&scope=${scopes}` +
+        `&state=${state}`
     );
   }
 
-  private onListening(scopes: string): void {
-    console.log(`Twitch auth server listening at http://${this.host}`);
-    this.openTwitchAuthPage(scopes);
-  }
-
-  private createServerAndlisten(scopes: string) {
-    this.server = http.createServer((req, res) => this.onRequest(req, res));
-    this.server.on("connection", (socket) => this.onSocketConnection(socket));
-    this.server.on("close", () => this.onClose());
-    this.server.listen(this.port, () => this.onListening(scopes));
+  private createServerAndlisten(): Promise<void> {
+    return new Promise((resolve) => {
+      this.server = http.createServer((req, res) => this.onRequest(req, res));
+      this.server.on("connection", (socket) => this.onSocketConnection(socket));
+      this.server.on("close", () => this.onClose());
+      this.server.listen(this.port, () => {
+        console.log(`Twitch auth server listening at http://${this.host}`);
+        resolve();
+      });
+    });
   }
 
   private resolve(response: ServerResponse) {
     this.promise?.resolve(response);
     this.promise = null;
+    // await this.close();
   }
 
   private reject(reason: ServerResponseError) {
     this.promise?.reject(reason);
     this.promise = null;
+    // await this.close();
   }
 
-  async listen(scopes: string): Promise<ServerResponse> {
-    if (!this.server) {
-      this.createServerAndlisten(scopes);
-    } else {
-      setTimeout(() => {
-        if (this.promise) {
-          this.openTwitchAuthPage(scopes);
-        }
-      }, 2000);
-    }
+  // private close() {
+  //   return new Promise((resolve, reject) => {
+  //     this.sockets.forEach((client) => client.destroy());
+  //     setTimeout(() => {
+  //       if (!this.promise && this.server) {
+  //         this.server?.close((err) => {
+  //           console.log("server close:", { err });
+  //           err ? reject(err) : resolve(true);
+  //         });
+  //       }
+  //     }, 2000);
+  //   });
+  // }
 
+  async listen(scopes: string) {
     if (this.promise) {
       this.reject({
         type: "invalidated-by-new-request",
@@ -195,8 +205,21 @@ export class Server {
       });
     }
 
-    return new Promise((resolve, reject) => {
+    const promise: Promise<ServerResponse> = new Promise((resolve, reject) => {
       this.promise = { resolve, reject };
     });
+
+    if (!this.server) {
+      this.listenPromise = this.createServerAndlisten();
+    }
+
+    if (this.listenPromise) {
+      await this.listenPromise;
+      this.listenPromise = null;
+    }
+
+    this.openTwitchAuthPage(scopes);
+
+    return promise;
   }
 }
