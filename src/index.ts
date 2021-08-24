@@ -21,9 +21,9 @@ export class NodeAuthProvider implements AuthProvider {
   private readonly _redirectUri: string;
   private readonly _scopes: string[];
 
-  private _server: Server;
   private _accessToken: AccessToken | null = null;
 
+  public readonly server: Server;
   public readonly tokenType: AuthProviderTokenType = "user";
 
   get clientId() {
@@ -44,7 +44,8 @@ export class NodeAuthProvider implements AuthProvider {
     this._clientId = clientId;
     this._redirectUri = redirectUri;
     this._scopes = arrayifyScopes(scopes);
-    this._server = new Server({ clientId, redirectUri });
+
+    this.server = new Server({ clientId, redirectUri });
 
     if (accessToken) {
       this.setAccessToken(accessToken);
@@ -60,21 +61,21 @@ export class NodeAuthProvider implements AuthProvider {
   }
 
   enableForceVerify(once: boolean = false) {
-    this._server.enableForceVerify(once);
+    this.server.enableForceVerify(once);
   }
 
   disableForceVerify() {
-    this._server.disableForceVerify();
+    this.server.disableForceVerify();
   }
 
   private async requestNewScopes(scopes: string[]): Promise<ServerResponse> {
-    return this._server.listen(
+    return this.server.listen(
       arrayUnique([...this._scopes, ...scopes]).join(" ")
     );
   }
 
   get forceVerify() {
-    return this._server.forceVerify || this._server.forceVerifyOnce;
+    return this.server.forceVerify || this.server.forceVerifyOnce;
   }
 
   async getAccessToken(scopes?: string | string[]): Promise<AccessToken> {

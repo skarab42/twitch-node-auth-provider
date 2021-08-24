@@ -5,6 +5,7 @@ import open from "open";
 import { URL } from "url";
 import { Socket } from "net";
 import { v4 as uuid } from "uuid";
+import { EventEmitter } from "events";
 
 export interface ServerOptions {
   clientId: string;
@@ -28,6 +29,15 @@ export enum ServerErrorTypes {
   ACCESS_DENIED = "ACCESS_DENIED",
 }
 
+export enum ServerEvents {
+  ERROR = "ERROR",
+  CLOSE = "CLOSE",
+  LISTEN = "LISTEN",
+  LISTENING = "LISTENING",
+  BROWSER_OPEN = "BROWSER_OPEN",
+  ACCESS_TOKEN = "ACCESS_TOKEN",
+}
+
 export interface ServerResponseError {
   type: ServerErrorTypes | string;
   message: string;
@@ -46,7 +56,7 @@ interface ServerPromise {
   reject: (reason: ServerResponseError) => void;
 }
 
-export class Server {
+export class Server extends EventEmitter {
   public readonly host: string;
   public readonly port: string;
   public readonly authPath: string;
@@ -66,10 +76,10 @@ export class Server {
   private loginTimeoutId: NodeJS.Timeout | null = null;
 
   constructor(options: ServerOptions) {
+    super();
+
     const { clientId, redirectUri, closeTimeout, loginTimeout } = options;
     const { host, port, pathname } = new URL(redirectUri);
-
-    console.log({ pathname });
 
     this.host = host;
     this.port = port;
@@ -78,6 +88,12 @@ export class Server {
     this.redirectUri = redirectUri;
     this.closeTimeout = closeTimeout ?? 2000;
     this.loginTimeout = loginTimeout ?? 5 * 60 * 1000;
+  }
+
+  override emit(eventName: string, data?: unknown): boolean {
+    const a = super.emit("event", { eventName, data });
+    const b = super.emit(eventName, data);
+    return a || b;
   }
 
   private sendFile(
@@ -108,8 +124,6 @@ export class Server {
 
   private onRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
     const url = new URL(req.url ?? "/404", this.redirectUri);
-
-    console.log("onRequest:", url.pathname);
 
     switch (url.pathname) {
       case this.authPath:
@@ -143,7 +157,6 @@ export class Server {
         this.sendFile(res, "favicon.ico", { contentType: "image/x-icon" });
         break;
       default:
-        console.log("Error 404", req);
         this.sendFile(res, "404.html");
         break;
     }
@@ -153,24 +166,22 @@ export class Server {
     const { remoteAddress, remotePort } = socket;
     const socketId = `${remoteAddress}:${remotePort}`;
 
-    console.log("onSocketConnection", { socketId });
     this.sockets.set(socketId, socket);
 
     socket.on("close", () => {
-      console.log("onSocketClose", { socketId });
       this.sockets.delete(socketId);
     });
   }
 
   private onClose(): void {
-    console.log("Twitch auth server closed");
-    this.promise = null;
     this.server = null;
+    this.promise = null;
+    this.emit(ServerEvents.CLOSE);
   }
 
   enableForceVerify(once: boolean = false) {
-    this.forceVerify = true;
     this.forceVerifyOnce = once;
+    this.forceVerify = true;
   }
 
   disableForceVerify() {
@@ -179,21 +190,21 @@ export class Server {
   }
 
   private openTwitchAuthPage(scopes: string) {
-    console.log("Open Twitch auth page");
-
     const state = uuid();
     this.states.add(state);
 
     const forceVerify = this.forceVerify || this.forceVerifyOnce;
-
-    open(
+    const url =
       `https://id.twitch.tv/oauth2/authorize?client_id=${this.clientId}` +
-        `&redirect_uri=${this.redirectUri}` +
-        `&force_verify=${forceVerify}` +
-        `&response_type=token` +
-        `&scope=${scopes}` +
-        `&state=${state}`
-    );
+      `&redirect_uri=${this.redirectUri}` +
+      `&force_verify=${forceVerify}` +
+      `&response_type=token` +
+      `&scope=${scopes}` +
+      `&state=${state}`;
+
+    open(url);
+
+    this.emit(ServerEvents.BROWSER_OPEN, { url });
 
     if (this.forceVerifyOnce) {
       this.disableForceVerify();
@@ -234,7 +245,7 @@ export class Server {
       this.server.on("connection", (socket) => this.onSocketConnection(socket));
       this.server.on("close", () => this.onClose());
       this.server.listen(this.port, () => {
-        console.log(`Twitch auth server listening at http://${this.host}`);
+        this.emit(ServerEvents.LISTENING, { host: this.host });
         resolve();
       });
     });
@@ -244,15 +255,19 @@ export class Server {
     this.promise?.resolve(response);
     this.promise = null;
     this.closeWithTimeout();
+    this.emit(ServerEvents.ACCESS_TOKEN, response);
   }
 
   private reject(reason: ServerResponseError) {
     this.promise?.reject(reason);
     this.promise = null;
     this.closeWithTimeout();
+    this.emit(ServerEvents.ERROR, reason);
   }
 
   async listen(scopes: string) {
+    this.emit(ServerEvents.LISTEN);
+
     if (this.promise) {
       this.reject({
         type: ServerErrorTypes.INVALIDATED,
