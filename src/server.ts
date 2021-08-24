@@ -49,6 +49,7 @@ interface ServerPromise {
 export class Server {
   public readonly host: string;
   public readonly port: string;
+  public readonly authPath: string;
   public readonly clientId: string;
   public readonly redirectUri: string;
 
@@ -66,10 +67,13 @@ export class Server {
 
   constructor(options: ServerOptions) {
     const { clientId, redirectUri, closeTimeout, loginTimeout } = options;
-    const { host, port } = new URL(redirectUri);
+    const { host, port, pathname } = new URL(redirectUri);
+
+    console.log({ pathname });
 
     this.host = host;
     this.port = port;
+    this.authPath = pathname;
     this.clientId = clientId;
     this.redirectUri = redirectUri;
     this.closeTimeout = closeTimeout ?? 2000;
@@ -108,7 +112,7 @@ export class Server {
     console.log("onRequest:", url.pathname);
 
     switch (url.pathname) {
-      case "/auth":
+      case this.authPath:
         this.sendFile(res, "auth.html");
         break;
       case "/token":
