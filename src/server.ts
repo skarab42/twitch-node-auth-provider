@@ -179,7 +179,7 @@ export class Server extends EventEmitter {
     this.emit(ServerEvents.CLOSE);
   }
 
-  enableForceVerify(once: boolean = false) {
+  enableForceVerify(once: boolean = true) {
     this.forceVerifyOnce = once;
     this.forceVerify = true;
   }
