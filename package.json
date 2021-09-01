@@ -4,6 +4,9 @@
   "license": "MIT",
   "description": "Obtain auth tokens for Twitch using an Node HTTP server popup.",
   "author": "skarab42 <contact@skarab42.dev>",
+  "homepage": "https://github.com/skarab42/twitch-node-auth-provider",
+  "bugs": "https://github.com/skarab42/twitch-node-auth-provider/issues",
+  "repository": "https://github.com/skarab42/twitch-node-auth-provider.git",
   "types": "dist/@types/index.d.ts",
   "main": "dist/cjs/index.js",
   "module": "dist/mjs/index.js",
@@ -11,6 +14,9 @@
     "import": "./dist/mjs/index.js",
     "require": "./dist/cjs/index.js"
   },
+  "files": [
+    "dist/**/*"
+  ],
   "scripts": {
     "clean": "rimraf dist",
     "dev": "tsc -w -p tsconfig-cjs.json",
@@ -43,5 +49,10 @@
   "peerDependencies": {
     "twitch": "^4.6.5",
     "twitch-auth": "^4.6.5"
-  }
+  },
+  "keywords": [
+    "twitch",
+    "auth",
+    "token"
+  ]
 }
